@@ -13,6 +13,7 @@ library(shinydashboard)
 library(shinycssloaders)
 library(tidyverse)
 library(googlesheets)
+library(DT)
 ########################
 # END LOADING LIBARIES #
 ########################
@@ -23,8 +24,24 @@ library(googlesheets)
 # START UI FUNCTION #
 #####################
 ui <- dashboardPage(
-
-		    )
+  
+  # Define Dashboard Header
+  dashboardHeader(
+    title = "Fairman Finances",
+    titleWidth = 225
+    ),
+  
+  # Define Dashboard Sidebar
+  dashboardSidebar(
+    width = 225
+  ),
+  
+  # Define Dashbard Body
+  dashboardBody(
+    
+  )
+  
+)
 ###################
 # END UI FUNCTION #
 ###################
@@ -34,7 +51,7 @@ ui <- dashboardPage(
 #########################
 # START SERVER FUNCTION #
 #########################
-server <- funcion(input, output, session) {
+server <- function(input, output, session) {
 
 }
 #######################
