@@ -64,11 +64,43 @@ ui <- dashboardPage(
   # Define Dashbard Body
   dashboardBody(
     
-    # Output Data Table
-    DT::dataTableOutput('tbl')
+    # Set Up Tabs
+    tabsetPanel(
+      id = "tabs",
+      
+      # First Tab
+      tabPanel(
+        title = "Graphs",
+        value = "page1",
+        
+        # Output Bar Graph
+        withSpinner(plotlyOutput(
+          outputId = 'bar',
+          width="100%",
+          height="650px"
+        ))
+        
+      ),
+      # End First Tab
+      
+      # Second Tab
+      tabPanel(
+        title = "Data Table",
+        value = "page2",
+        
+        # Output Data Table
+        withSpinner(DT::dataTableOutput(
+          outputId = 'tbl',
+          width="100%",
+          height="100%"
+        ))
+        
+      )
+      # End Second Tab
+   
+    )
     
   )
-  
 )
 ###################
 # END UI FUNCTION #
@@ -116,14 +148,28 @@ server <- function(input, output, session) {
     
     # Reactively Filter Data Based On Inputs
     dataset <- reactive({
-      filtered_data <- finances %>% filter(year == input$yearInput) %>% filter(month == input$monthInput)
+      if (input$monthInput == 99) {
+        filtered_data <- finances %>% filter(year == input$yearInput)
+      } else {
+        filtered_data <- finances %>% filter(year == input$yearInput) %>% filter(month == input$monthInput)
+      }
     })
     
     # Create Data Table Output
-    output$tbl = DT::renderDataTable(
+    output$tbl <- DT::renderDataTable(
       dataset()
     )
     
+    output$bar <- renderPlotly({
+      a <- ggplot(dataset(), aes(x=Category, y=-Amount, fill=Category),show.legend=F) +
+        geom_bar(stat="identity") +
+        xlab("Cost Category") +
+        ylab("Total Amount ($)") +
+        theme_minimal() +
+        theme_bw(base_size=15)
+      a <- ggplotly(a)
+      a
+    })
     
   })
   
