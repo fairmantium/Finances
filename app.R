@@ -121,14 +121,15 @@ server <- function(input, output, session) {
   
   # Read Data From Sheets
   credit_data <- sheet %>% gs_read(ws="Credit Cards")
-  other_expenses <- sheet %>% gs_read(ws="Other Expenses")
+  #other_expenses <- sheet %>% gs_read(ws="Other Expenses")
   
   # Convert Date Columns
   credit_data$TransactionDate <- as.Date(credit_data$TransactionDate, format="%m/%d/%Y")
-  other_expenses$TransactionDate <- as.Date(other_expenses$TransactionDate, format="%m/%d/%Y")
+  #other_expenses$TransactionDate <- as.Date(other_expenses$TransactionDate, format="%m/%d/%Y")
   
   # Bind Together Dataframes
-  finances <- bind_rows(credit_data, other_expenses)
+  #finances <- bind_rows(credit_data, other_expenses)
+  finances <- credit_data
   finances$year <- lubridate::year(finances$TransactionDate)
   finances$month <- lubridate::month(finances$TransactionDate)
   finances$day <- lubridate::day(finances$TransactionDate)
@@ -161,7 +162,7 @@ server <- function(input, output, session) {
     )
     
     output$bar <- renderPlotly({
-      a <- ggplot(dataset(), aes(x=Category, y=-Amount, fill=Category),show.legend=F) +
+      a <- ggplot(dataset(), aes(x=Category, y=Amount, fill=Category),show.legend=F) +
         geom_bar(stat="identity") +
         xlab("Cost Category") +
         ylab("Total Amount ($)") +
