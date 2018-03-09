@@ -70,8 +70,23 @@ ui <- dashboardPage(
       
       # First Tab
       tabPanel(
+        title="Time vs. Expenses",
+        value="page1",
+        
+        # Output Line Graph
+        withSpinner(plotlyOutput(
+          outputId= 'line',
+          width="100%",
+          height="800px"
+        ))
+        
+      ),
+      # End of First Tab
+      
+      # Second Tab
+      tabPanel(
         title = "Graphs",
-        value = "page1",
+        value = "page2",
         
         # Output Bar Graph
         withSpinner(plotlyOutput(
@@ -81,12 +96,12 @@ ui <- dashboardPage(
         ))
         
       ),
-      # End First Tab
+      # End Second Tab
       
-      # Second Tab
+      # Third Tab
       tabPanel(
         title = "Data Table",
-        value = "page2",
+        value = "page3",
         
         # Output Data Table
         withSpinner(DT::dataTableOutput(
@@ -96,7 +111,7 @@ ui <- dashboardPage(
         ))
         
       )
-      # End Second Tab
+      # End Third Tab
    
     )
     
@@ -120,16 +135,13 @@ server <- function(input, output, session) {
   sheet <- gs_title("Financial Dataframe")
   
   # Read Data From Sheets
-  credit_data <- sheet %>% gs_read(ws="Credit Cards")
-  #other_expenses <- sheet %>% gs_read(ws="Other Expenses")
-  
+  barclaydata <- sheet %>% gs_read(ws="Barclaycard")
+
   # Convert Date Columns
-  credit_data$TransactionDate <- as.Date(credit_data$TransactionDate, format="%m/%d/%Y")
-  #other_expenses$TransactionDate <- as.Date(other_expenses$TransactionDate, format="%m/%d/%Y")
-  
-  # Bind Together Dataframes
-  #finances <- bind_rows(credit_data, other_expenses)
-  finances <- credit_data
+  barclaydata$TransactionDate <- as.Date(barclaydata$TransactionDate, format="%m/%d/%Y")
+
+    # Bind Together Dataframes
+  finances <- bind_rows(barclaydata)
   finances$year <- lubridate::year(finances$TransactionDate)
   finances$month <- lubridate::month(finances$TransactionDate)
   finances$day <- lubridate::day(finances$TransactionDate)
@@ -147,7 +159,12 @@ server <- function(input, output, session) {
       )
     })
     
-    # Reactively Filter Data Based On Inputs
+    # Reactively Filter Data Based on Year Input
+    yeardata <- reactive({
+      filtered_data <- finances %>% filter(year == input$yearInput)
+    })
+    
+    # Reactively Filter Data Based On Year And Month Inputs
     dataset <- reactive({
       if (input$monthInput == 99) {
         filtered_data <- finances %>% filter(year == input$yearInput)
@@ -155,22 +172,36 @@ server <- function(input, output, session) {
         filtered_data <- finances %>% filter(year == input$yearInput) %>% filter(month == input$monthInput)
       }
     })
+
+    # Create Month vs Spending Line Graph(s)
+    output$line <- renderPlotly({
+      a <- ggplot(yeardata(), aes(x=month, y=Amount, color=Category)) +
+        #geom_line(stat="identity") +
+        geom_line() +
+        xlab("Month") +
+        ylab("Total Amount ($)") +
+        scale_x_continuous(limits=c(1,12), breaks=c(1,2,3,4,5,6,7,8,9,10,11,12)) +
+        theme_minimal()
+      a <- ggplotly(a)
+      a
+    })
+    
+    # Create Bar Graphs Based on Year And Month Filter
+    output$bar <- renderPlotly({
+      b <- ggplot(dataset(), aes(x=Category, y=Amount, fill=Category),show.legend=F) +
+        geom_bar(stat="identity") +
+        xlab("Cost Category") +
+        ylab("Total Amount ($)") +
+        theme_minimal()
+        #theme_bw(base_size=15)
+      b <- ggplotly(b)
+      b
+    })
     
     # Create Data Table Output
     output$tbl <- DT::renderDataTable(
       dataset()
     )
-    
-    output$bar <- renderPlotly({
-      a <- ggplot(dataset(), aes(x=Category, y=Amount, fill=Category),show.legend=F) +
-        geom_bar(stat="identity") +
-        xlab("Cost Category") +
-        ylab("Total Amount ($)") +
-        theme_minimal() +
-        theme_bw(base_size=15)
-      a <- ggplotly(a)
-      a
-    })
     
   })
   
