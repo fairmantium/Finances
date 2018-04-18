@@ -92,7 +92,7 @@ ui <- dashboardPage(
         withSpinner(plotlyOutput(
           outputId = 'bar',
           width="100%",
-          height="650px"
+          height="975px"
         ))
         
       ),
@@ -129,14 +129,23 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
 
   # Authenticate With Google Using Pre-Stored Token
-  gs_auth(token="sheets_token.rds")
+  gs_auth(token="googlesheets_token.rds")
   
   # Getting Financial Data Sheet
   sheet <- gs_title("Financial Dataframe")
   
   # Read Data From Sheets
+<<<<<<< HEAD
+  #barclay_data <- sheet %>% gs_read(ws = "Barclaycard")
+  #chase_data <- sheet %>% gs_read(ws = "Chase_Sapphire")
+  #usaa_data <- sheet %>% gs_read(ws = "USAA_Checking")
+  
+  credit_data <- sheet %>% gs_read(ws = "Barclaycard")
+  
+=======
   barclaydata <- sheet %>% gs_read(ws="Barclaycard")
 
+>>>>>>> abe0e6964e1183496b5bbd593761a0172865fbcf
   # Convert Date Columns
   barclaydata$TransactionDate <- as.Date(barclaydata$TransactionDate, format="%m/%d/%Y")
 
@@ -190,12 +199,21 @@ server <- function(input, output, session) {
     output$bar <- renderPlotly({
       b <- ggplot(dataset(), aes(x=Category, y=Amount, fill=Category),show.legend=F) +
         geom_bar(stat="identity") +
-        xlab("Cost Category") +
+        xlab("") +
         ylab("Total Amount ($)") +
+<<<<<<< HEAD
+        theme_minimal() +
+        theme_bw(base_size=15) +
+        theme(axis.text.x=element_text(angle=45,hjust=1,vjust=1),
+              plot.margin = unit(c(1.25,1.25,1.25,1.25), "cm"))
+      a <- ggplotly(a)
+      a
+=======
         theme_minimal()
         #theme_bw(base_size=15)
       b <- ggplotly(b)
       b
+>>>>>>> abe0e6964e1183496b5bbd593761a0172865fbcf
     })
     
     # Create Data Table Output
