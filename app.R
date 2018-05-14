@@ -129,28 +129,25 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
 
   # Authenticate With Google Using Pre-Stored Token
-  gs_auth(token="googlesheets_token.rds")
+  gs_auth(token="sheets_token.rds")
   
   # Getting Financial Data Sheet
   sheet <- gs_title("Financial Dataframe")
   
   # Read Data From Sheets
-<<<<<<< HEAD
-  #barclay_data <- sheet %>% gs_read(ws = "Barclaycard")
-  #chase_data <- sheet %>% gs_read(ws = "Chase_Sapphire")
-  #usaa_data <- sheet %>% gs_read(ws = "USAA_Checking")
+  barclaydata <- sheet %>% gs_read(ws = "Barclaycard")
+  chasedata <- sheet %>% gs_read(ws = "Chase_Sapphire")
+  usaadata <- sheet %>% gs_read(ws = "USAA_Checking")
   
-  credit_data <- sheet %>% gs_read(ws = "Barclaycard")
-  
-=======
-  barclaydata <- sheet %>% gs_read(ws="Barclaycard")
-
->>>>>>> abe0e6964e1183496b5bbd593761a0172865fbcf
   # Convert Date Columns
   barclaydata$TransactionDate <- as.Date(barclaydata$TransactionDate, format="%m/%d/%Y")
+  chasedata$TransactionDate <- as.Date(chasedata$TransactionDate, format="%m/%d/%Y")
+  usaadata$TransactionDate <- as.Date(usaadata$TransactionDate, format='%m/%d/%Y')
 
     # Bind Together Dataframes
   finances <- bind_rows(barclaydata)
+  finances <- bind_rows(finances, chasedata)
+  finances <- bind_rows(finances, usaadata)
   finances$year <- lubridate::year(finances$TransactionDate)
   finances$month <- lubridate::month(finances$TransactionDate)
   finances$day <- lubridate::day(finances$TransactionDate)
@@ -164,6 +161,7 @@ server <- function(input, output, session) {
         inputId = "yearInput",
         label = "Select a Year:",
         choices = sort(unique(finances$year)),
+        selected = 2018,
         width = "100%"
       )
     })
@@ -193,6 +191,7 @@ server <- function(input, output, session) {
         theme_minimal()
       a <- ggplotly(a)
       a
+      
     })
     
     # Create Bar Graphs Based on Year And Month Filter
@@ -201,24 +200,23 @@ server <- function(input, output, session) {
         geom_bar(stat="identity") +
         xlab("") +
         ylab("Total Amount ($)") +
-<<<<<<< HEAD
         theme_minimal() +
         theme_bw(base_size=15) +
         theme(axis.text.x=element_text(angle=45,hjust=1,vjust=1),
               plot.margin = unit(c(1.25,1.25,1.25,1.25), "cm"))
-      a <- ggplotly(a)
-      a
-=======
-        theme_minimal()
-        #theme_bw(base_size=15)
       b <- ggplotly(b)
       b
->>>>>>> abe0e6964e1183496b5bbd593761a0172865fbcf
+
     })
     
     # Create Data Table Output
     output$tbl <- DT::renderDataTable(
-      dataset()
+      
+      # Turn Reactive Dataframe Into Datatable
+      df <- DT::datatable(dataset(),
+                          options = list(pageLength = 30)
+                          )
+      
     )
     
   })
