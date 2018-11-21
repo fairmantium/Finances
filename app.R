@@ -42,9 +42,8 @@ ui <- dashboardPage(
     # Input for Month
     selectInput(
       inputId = "monthInput",
-      label = "Select A Month:",
-      choices = c("All Year" = 99,
-                  "Jan" = 1,
+      label = "Select Month(s):",
+      choices = c("Jan" = 1,
                   "Feb" = 2,
                   "Mar" = 3,
                   "Apr" = 4,
@@ -56,9 +55,23 @@ ui <- dashboardPage(
                   "Oct" = 10,
                   "Nov" = 11,
                   "Dec" = 12),
-      selected = "All Year",
-      width = "100%"
+      selected = c(1,2,3,4,5,6,7,8,9,10,11,12),
+      width = "100%",
+      multiple = TRUE
+    ),
+    
+    # Account Selector
+    selectInput(
+      inputId = "accountInput",
+      label = "Select Account(s):",
+      choices = c("Barclaycard" = "Barclaycard",
+                  "Chase Sapphire" = "ChaseSapphire",
+                  "USAA" = "USAAChecking"),
+      selected = c("Barclaycard","ChaseSapphire","USAAChecking"),
+      width = "100%",
+      multiple = TRUE
     )
+    
   ),
   
   # Define Dashbard Body
@@ -74,10 +87,12 @@ ui <- dashboardPage(
         value="page1",
         
         # Output Line Graph
-        withSpinner(plotlyOutput(
-          outputId= 'line',
-          width="100%",
-          height="800px"
+        withSpinner(
+          size = 3,
+          plotlyOutput(
+            outputId= 'line',
+            width="100%",
+            height="800px"
         ))
         
       ),
@@ -89,10 +104,12 @@ ui <- dashboardPage(
         value = "page2",
         
         # Output Bar Graph
-        withSpinner(plotlyOutput(
-          outputId = 'bar',
-          width="100%",
-          height="975px"
+        withSpinner(
+          size = 3,
+          plotlyOutput(
+            outputId = 'bar',
+            width="100%",
+            height="975px"
         ))
         
       ),
@@ -104,10 +121,12 @@ ui <- dashboardPage(
         value = "page3",
         
         # Output Data Table
-        withSpinner(DT::dataTableOutput(
-          outputId = 'tbl',
-          width="100%",
-          height="100%"
+        withSpinner(
+          size = 3,
+          DT::dataTableOutput(
+            outputId = 'tbl',
+            width="100%",
+            height="100%"
         ))
         
       )
@@ -127,24 +146,29 @@ ui <- dashboardPage(
 # START SERVER FUNCTION #
 #########################
 server <- function(input, output, session) {
-
+  
   # Authenticate With Google Using Pre-Stored Token
-  gs_auth(token="sheets_token.rds")
+  gs_auth(token="../googlesheets_token.rds")
   
   # Getting Financial Data Sheet
   sheet <- gs_title("Financial Dataframe")
   
   # Read Data From Sheets
   barclaydata <- sheet %>% gs_read(ws = "Barclaycard")
+  Sys.sleep(2)
   chasedata <- sheet %>% gs_read(ws = "Chase_Sapphire")
+  Sys.sleep(2)
   usaadata <- sheet %>% gs_read(ws = "USAA_Checking")
   
   # Convert Date Columns
   barclaydata$TransactionDate <- as.Date(barclaydata$TransactionDate, format="%m/%d/%Y")
   chasedata$TransactionDate <- as.Date(chasedata$TransactionDate, format="%m/%d/%Y")
   usaadata$TransactionDate <- as.Date(usaadata$TransactionDate, format='%m/%d/%Y')
-
-    # Bind Together Dataframes
+  
+  # Clean USAA Account Data To Remove Payments to Chase and Barclaycard
+  usaadata <- usaadata %>% filter(!PaidTo %in% c("Chase","Barclaycard"))
+  
+  # Bind Together Dataframes
   finances <- bind_rows(barclaydata)
   finances <- bind_rows(finances, chasedata)
   finances <- bind_rows(finances, usaadata)
@@ -152,76 +176,90 @@ server <- function(input, output, session) {
   finances$month <- lubridate::month(finances$TransactionDate)
   finances$day <- lubridate::day(finances$TransactionDate)
   
-  # Wait For Finances Dataframe
-  observeEvent(finances,{
+  # Make Year Input Tool
+  output$yearInput <- renderUI({
     
-    # Make Year Input Tool
-    output$yearInput <- renderUI({
-      selectInput(
-        inputId = "yearInput",
-        label = "Select a Year:",
-        choices = sort(unique(finances$year)),
-        selected = 2018,
-        width = "100%"
-      )
-    })
+    req(finances)
     
-    # Reactively Filter Data Based on Year Input
-    yeardata <- reactive({
-      filtered_data <- finances %>% filter(year == input$yearInput)
-    })
-    
-    # Reactively Filter Data Based On Year And Month Inputs
-    dataset <- reactive({
-      if (input$monthInput == 99) {
-        filtered_data <- finances %>% filter(year == input$yearInput)
-      } else {
-        filtered_data <- finances %>% filter(year == input$yearInput) %>% filter(month == input$monthInput)
-      }
-    })
-
-    # Create Month vs Spending Line Graph(s)
-    output$line <- renderPlotly({
-      a <- ggplot(yeardata(), aes(x=month, y=Amount, color=Category)) +
-        #geom_line(stat="identity") +
-        geom_line() +
-        xlab("Month") +
-        ylab("Total Amount ($)") +
-        scale_x_continuous(limits=c(1,12), breaks=c(1,2,3,4,5,6,7,8,9,10,11,12)) +
-        theme_minimal()
-      a <- ggplotly(a)
-      a
-      
-    })
-    
-    # Create Bar Graphs Based on Year And Month Filter
-    output$bar <- renderPlotly({
-      b <- ggplot(dataset(), aes(x=Category, y=Amount, fill=Category),show.legend=F) +
-        geom_bar(stat="identity") +
-        xlab("") +
-        ylab("Total Amount ($)") +
-        theme_minimal() +
-        theme_bw(base_size=15) +
-        theme(axis.text.x=element_text(angle=45,hjust=1,vjust=1),
-              plot.margin = unit(c(1.25,1.25,1.25,1.25), "cm"))
-      b <- ggplotly(b)
-      b
-
-    })
-    
-    # Create Data Table Output
-    output$tbl <- DT::renderDataTable(
-      
-      # Turn Reactive Dataframe Into Datatable
-      df <- DT::datatable(dataset(),
-                          options = list(pageLength = 30)
-                          )
-      
+    selectInput(
+      inputId = "yearInput",
+      label = "Select a Year:",
+      choices = sort(unique(finances$year)),
+      selected = 2018,
+      width = "100%"
     )
     
   })
   
+  # Reactively Filter Data Based on Year, Month, and Account Input
+  reacData <- reactive({
+    
+    req(finances)
+    req(input$monthInput)
+    req(input$accountInput)
+    
+    df <- finances %>% filter(year == input$yearInput) %>%
+      filter(month %in% input$monthInput) %>%
+      filter(Account %in% input$accountInput)
+    
+  })
+  
+  # Create Month vs Spending Line Graph(s)
+  output$line <- renderPlotly({
+    
+    test <- reacData() %>% group_by(month, Category) %>%
+      summarise(total = sum(Amount))
+    
+    cycleplot <- plot_ly(data = test,
+                         x = ~month,
+                         y = ~total,
+                         color = ~Category,
+                         type = "scatter",
+                         mode = "lines+markers",
+                         marker = list(size=12),
+                         line = list(width=5)
+    ) %>%
+      layout(title = ~paste("Monthly Spending"),
+             titlefont = list(size=15),
+             yaxis = list(title = "Amount ($)",
+                          titlefont = list(size=20)),
+             xaxis = list(title = "Month of the Year",
+                          titlefont = list(size=20))
+      )
+    
+  })
+  
+  # Create Bar Graphs Based on Year And Month Filter
+  output$bar <- renderPlotly({
+    
+    
+    
+  })
+  
+  # Create Data Table Output
+  output$tbl <- DT::renderDataTable({
+    
+    # Turn Reactive Dataframe Into Datatable
+    df <- DT::datatable(reacData(),
+                        extensions = c("Scroller","ColReorder","KeyTable"),
+                        options = list(pageLength = 20,
+                                       paging = TRUE,
+                                       searching = TRUE,
+                                       scroller = TRUE,
+                                       ordering = TRUE,
+                                       searchHighlight = TRUE,
+                                       scrollY = 700,
+                                       scrollX = TRUE,
+                                       colReorder = TRUE,
+                                       keys = TRUE)
+    )
+    
+    
+  })
+  
 }
+
+
 #######################
 # END SERVER FUNCTION #
 #######################
