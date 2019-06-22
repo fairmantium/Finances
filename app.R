@@ -241,8 +241,11 @@ server <- function(input, output, session) {
     
     # Turn Reactive Dataframe Into Datatable
     df <- DT::datatable(reacData(),
+                        filter = 'top',
+                        class = 'cell-border stripe',
                         extensions = c("Scroller","ColReorder","KeyTable"),
                         options = list(pageLength = 20,
+                                       autoWidth = TRUE,
                                        paging = TRUE,
                                        searching = TRUE,
                                        scroller = TRUE,
