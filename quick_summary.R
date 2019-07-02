@@ -31,7 +31,8 @@ ashleydata$TransactionDate <- as.Date(ashleydata$TransactionDate, format='%m/%d/
 jimdata$TransactionDate <- as.Date(jimdata$TransactionDate, format='%m/%d/%Y')
 
 # Clean USAA Account Data To Remove Payments to Chase and Barclaycard
-usaadata <- usaadata %>% filter(!PaidTo %in% c("Chase","Barclaycard"))
+usaadata <- usaadata %>% filter(!PaidTo %in% c("Chase","Barclaycard")) %>%
+  filter(!SubCategory %in% c("Payroll Deposit"))
 
 # Bind Together Dataframes
 finances <- bind_rows(barclaydata)
@@ -47,5 +48,12 @@ finances$day <- lubridate::day(finances$TransactionDate)
 
 # Summarize Data for 2019
 x <- finances %>% filter(year == 2019) %>% 
+  filter(month < 5) %>%
   group_by(Category2, SubCategory2) %>% 
+  summarize(sum(Amount))
+
+y <- finances %>% filter(year == 2019) %>% 
+  filter(month < 5) %>%
+  filter(is.na(Category2)) %>%
+  group_by(Category, SubCategory, PaidTo) %>% 
   summarize(sum(Amount))
